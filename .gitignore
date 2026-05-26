@@ -1,0 +1,6 @@
+.env.local
+.env
+node_modules/
+.next/
+.PROMPTS.md
+vizhi_reports/
