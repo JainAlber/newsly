@@ -89,3 +89,18 @@ Result:
 Inserted "## Long-Term Project Vision & Roadmap" into CLAUDE.md directly below the Project overview and above "## App Name", containing the three phase tracks verbatim. All other sections (App Name, Tech Stack, Rules, RSS Sources, What NOT to do, Prompt Logging) left byte-for-byte unchanged.
 
 ---
+## Week 2 Day 4 — GitHub Actions CI/CD pipeline
+Date: 2026-06-15
+Prompt:
+Create the GitHub Actions CI/CD pipeline for Newsly. Create .github/workflows/ci.yml with two jobs. Job 1 (lint): runs on ubuntu-latest, triggered on push to master and pull_request to master, steps = checkout, setup Node 20, npm ci, npx next lint. Job 2 (build-and-push): needs lint, runs on ubuntu-latest, steps = checkout, set up Docker Buildx, log in to GHCR using secrets.GITHUB_TOKEN, build the Docker image with the existing Dockerfile passing GROQ_API_KEY build-arg as the placeholder value, tag as ghcr.io/jainalber/newsly:latest and :<git-sha>, push to GHCR only on push to master (not on pull_requests). Also add a CI status badge to the top of README.md. Append to PROMPTS.md per logging rules.
+
+Result:
+- Created `.github/workflows/ci.yml` (name: CI). Triggers: push + pull_request on master.
+  - `lint` job: checkout@v4, setup-node@v4 (node 20, npm cache), `npm ci`, `npx next lint`.
+  - `build-and-push` job: `needs: lint`, `permissions: contents:read + packages:write`. Steps: checkout@v4, docker/setup-buildx-action@v3, docker/login-action@v3 (registry ghcr.io, username `${{ github.actor }}`, password `${{ secrets.GITHUB_TOKEN }}`), docker/build-push-action@v6 with `build-args: GROQ_API_KEY=placeholder_key_for_compilation`, tags `ghcr.io/jainalber/newsly:latest` + `:${{ github.sha }}`, and `push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}` so PRs build-only, master pushes publish.
+- README.md: added GitHub Actions CI status badge immediately under the `# Newsly` title.
+- Updated CLAUDE.md (by user) now documents the CI/CD pipeline section; workflow matches it.
+
+NOTE: package.json has a `lint` script (`next lint`) but no eslint devDependency or eslint config committed. On a clean CI runner `npx next lint` may attempt to install/scaffold ESLint and could fail or behave non-interactively. If the lint job breaks, add `eslint` + `eslint-config-next` to devDependencies and commit a `.eslintrc.json` (`{ "extends": "next/core-web-vitals" }`).
+
+---

@@ -1,5 +1,7 @@
 # Newsly
 
+[![CI](https://github.com/jainalber/newsly/actions/workflows/ci.yml/badge.svg)](https://github.com/jainalber/newsly/actions/workflows/ci.yml)
+
 Your daily AI news briefing — fetches AI headlines from RSS feeds and summarizes each into 3 bullet points with Groq.
 
 ## Screenshot

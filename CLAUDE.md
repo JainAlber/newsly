@@ -60,3 +60,14 @@ Result:
 ---
 
 Do this automatically after every prompt without being asked.
+
+## CI/CD Pipeline
+- Platform: GitHub Actions
+- Registry: GitHub Container Registry (GHCR) — ghcr.io/jainalber/newsly
+- Workflow file: .github/workflows/ci.yml
+- Triggers: push to master, pull_request to master
+- Jobs (in order):
+  1. lint — runs ESLint on the codebase
+  2. build-and-push — builds the Docker image, pushes to GHCR on master only
+- The GROQ_API_KEY build arg uses the placeholder value during CI
+- Vercel deploy continues to trigger automatically and is separate
