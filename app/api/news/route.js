@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import Parser from "rss-parser";
 import Groq from "groq-sdk";
+import { logger } from "../../../lib/logger";
 
 // RSS feeds change often; always fetch fresh.
 export const dynamic = "force-dynamic";
@@ -83,19 +84,45 @@ async function callGroq(title, description) {
 }
 
 // Timeout once, retry once, then fall back to a placeholder.
-async function summarize(title, description) {
+async function summarize(title, description, source) {
+  const shortTitle = title.slice(0, 50);
+  logger.info("Groq summarization started", { title: shortTitle, source });
+  const started = Date.now();
   try {
-    return await callGroq(title, description);
-  } catch {
+    const bullets = await callGroq(title, description);
+    logger.info("Article summary succeeded", {
+      title: shortTitle,
+      source,
+      duration_ms: Date.now() - started,
+    });
+    return bullets;
+  } catch (err) {
+    logger.warn("Groq summarization failed, retrying", {
+      title: shortTitle,
+      source,
+      error: err.message,
+    });
     try {
-      return await callGroq(title, description);
-    } catch {
+      const bullets = await callGroq(title, description);
+      logger.info("Article summary succeeded", {
+        title: shortTitle,
+        source,
+        duration_ms: Date.now() - started,
+      });
+      return bullets;
+    } catch (err2) {
+      logger.error("Groq summarization failed, using fallback", {
+        title: shortTitle,
+        source,
+        error: err2.message,
+      });
       return placeholderBullets(title);
     }
   }
 }
 
 async function fetchFeedItems({ name, url }) {
+  logger.info("Fetching RSS source", { source: name });
   try {
     const feed = await parser.parseURL(url);
     return (feed.items || []).slice(0, 5).map((item) => ({
@@ -104,13 +131,18 @@ async function fetchFeedItems({ name, url }) {
       source: name,
       description: item.contentSnippet || item.content || item.summary || "",
     }));
-  } catch {
+  } catch (err) {
     // One broken feed should not kill the whole response.
+    logger.error("Failed to fetch RSS source", {
+      source: name,
+      error: err.message,
+    });
     return [];
   }
 }
 
 export async function GET() {
+  const requestStart = Date.now();
   try {
     // Feeds are cheap — fetch them in parallel.
     const itemLists = await Promise.all(FEEDS.map(fetchFeedItems));
@@ -126,15 +158,24 @@ export async function GET() {
           title: it.title,
           link: it.link,
           source: it.source,
-          bullets: await summarize(it.title, it.description),
+          bullets: await summarize(it.title, it.description, it.source),
         }))
       );
       articles.push(...summarized);
       if (i + BATCH_SIZE < items.length) await sleep(BATCH_DELAY_MS);
     }
 
+    logger.info("News request completed", {
+      total_articles: articles.length,
+      total_duration_ms: Date.now() - requestStart,
+    });
     return NextResponse.json(articles);
   } catch (err) {
+    logger.error("News request failed", {
+      source: "request",
+      error: err.message,
+      total_duration_ms: Date.now() - requestStart,
+    });
     return NextResponse.json(
       { error: err.message || "Failed to fetch news" },
       { status: 500 }

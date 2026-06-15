@@ -149,3 +149,20 @@ Result:
 - app/page.js line 35: subtitle now "Your daily AI news briefing ✦". No other changes. Intended as a trivial visible diff to exercise the full CI/CD → GHCR → Railway redeploy pipeline on the next push to master.
 
 ---
+## Week 2 Day 6 — Structured JSON logging in news API route
+Date: 2026-06-15
+Prompt:
+Add structured logging to Newsly's API route. (1) Create /lib/logger.js — a simple no-dependency logger that outputs JSON lines to stdout with fields level (info/error/warn), timestamp (ISO string), message, plus any extra context fields. (2) Update /app/api/news/route.js to use the logger instead of raw console.log. Add log entries for: fetching starts per RSS source (info, source name); Groq summarization starts per article (info, title truncated to 50 chars); summary succeeds (info, duration_ms); any error (error, error message + source); full request completes (info, total articles count + total duration_ms). Do not change existing functionality — only add logging. Append to PROMPTS.md per logging rules.
+
+Result:
+- Created `/lib/logger.js`: `log(level, message, context)` builds `{ level, timestamp: new Date().toISOString(), message, ...context }` and writes one JSON line via `process.stdout.write(... + "\n")`. Exports `logger.info/warn/error`. Zero dependencies.
+- `/app/api/news/route.js` instrumented (logic unchanged, only additive logs + one new param):
+  - `fetchFeedItems`: `info "Fetching RSS source" { source }` at start; `error "Failed to fetch RSS source" { source, error }` in catch (was a bare `catch {}`).
+  - `summarize(title, description, source)` — added `source` param: `info "Groq summarization started" { title(≤50), source }`; on success `info "Article summary succeeded" { title, source, duration_ms }`; first-attempt failure `warn "...retrying" { ..., error }`; terminal failure `error "...using fallback" { ..., error }`. Duration timed from first attempt.
+  - `GET`: times whole request from `requestStart`; passes `it.source` into `summarize`; on success `info "News request completed" { total_articles, total_duration_ms }`; top-level catch now `error "News request failed" { source: "request", error, total_duration_ms }`.
+- No raw `console.log` anywhere (there were none to begin with). Batching/timeout/retry/fallback behavior byte-for-byte preserved.
+- Verified: `npx next lint` → clean; `npm run build` → compiles, /api/news route builds. Satisfies the new CLAUDE.md rules (JSON logging via /lib/logger.js, no raw console.log in API routes).
+
+NOTE: first-attempt Groq failures are logged at `warn` (transient — it retries and usually succeeds); only the final give-up (fallback used) is `error`. This is intentional and still includes error message + source on both, matching the "any error → message + source" intent without flooding `error` with recoverable retries.
+
+---

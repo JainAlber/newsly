@@ -34,6 +34,9 @@ Newsly
 - Keep components simple — one file per component
 - Use async/await, not .then()
 - All API calls go in /app/api/ routes, never in frontend components directly
+- Use structured JSON logging in all API routes via /lib/logger.js
+- Log fields: level, timestamp, message, and any relevant context
+- Never use raw console.log in API routes
 
 ## RSS Sources
 - TechCrunch AI: https://techcrunch.com/category/artificial-intelligence/feed/
