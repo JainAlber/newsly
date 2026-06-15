@@ -166,3 +166,20 @@ Result:
 NOTE: first-attempt Groq failures are logged at `warn` (transient — it retries and usually succeeds); only the final give-up (fallback used) is `error`. This is intentional and still includes error message + source on both, matching the "any error → message + source" intent without flooding `error` with recoverable retries.
 
 ---
+## Week 2 Day 6 — DEPLOYMENT.md reference doc
+Date: 2026-06-15
+Prompt:
+Create DEPLOYMENT.md in the project root documenting the full deploy pipeline for Newsly. Cover: (1) Overview paragraph; (2) Architecture flow git push → lint → Docker build → GHCR push → Railway redeploy; (3) Environments table Vercel (auto, Next.js native) vs Railway (Docker, CI-triggered); (4) GitHub Secrets list (GROQ_API_KEY, GITHUB_TOKEN, RAILWAY_TOKEN, RAILWAY_SERVICE_ID, RAILWAY_ENVIRONMENT_ID) + what each is for; (5) Local Development docker-compose vs npm run dev; (6) Monitoring UptimeRobot watching newsly-production.up.railway.app every 5 min; (7) Rollback via Railway dashboard. Concise + technical. Append to PROMPTS.md per logging rules.
+
+Result:
+Created `DEPLOYMENT.md` (project root) with all 7 sections:
+- Overview: two parallel paths from master — Vercel native + Actions→GHCR→Railway.
+- Architecture: ASCII flow diagram of the 3 gated jobs (lint → build-and-push → deploy) plus the parallel Vercel branch; notes PRs build-only.
+- Environments: table contrasting Vercel (native, auto, always-redeploy) vs Railway (Docker from GHCR, CI-triggered, redeploy only after image push); Railway domain `newsly-production.up.railway.app`.
+- GitHub Secrets: table of all 5 secrets, consumer, and purpose; clarifies GROQ_API_KEY is a runtime secret (build uses placeholder) and GITHUB_TOKEN is auto-provisioned; secrets injected via `env:` not inline.
+- Local Development: native (`npm run dev`) vs Compose (`up -d --build` / `logs -f` / `down`) with the parity note.
+- Monitoring: UptimeRobot 5-min ping + pointer to the `/lib/logger.js` structured JSON logs in Railway/Vercel.
+- Rollback: Railway dashboard redeploy of a prior immutable `:<git-sha>` image (primary), plus the `git revert`+push path (rebuilds).
+Cross-referenced CLAUDE.md (rules) and PROMPTS.md (change log) in the header. No code changed.
+
+---
