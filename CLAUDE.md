@@ -3,6 +3,22 @@
 ## Project
 A Next.js 14 app that fetches AI news from RSS feeds, summarizes each article using Groq AI into 3 bullet points, and displays them in a clean card UI.
 
+## Long-Term Project Vision & Roadmap
+
+### Phase 1: Infrastructure & Orchestration (Current Focus)
+- Hardening the multi-stage production Docker environment to optimize image sizing.
+- Implementing multi-container orchestration via Docker Compose for localized network isolation and seamless local deployment.
+- Hardening automated CI/CD pipelines via GitHub Actions for continuous code integration and validation checking.
+
+### Phase 2: AI Agents & Custom Tools (Upcoming)
+- Evolving the codebase into an autonomous, multi-step agent workflow.
+- Designing a custom Model Context Protocol (MCP) server allowing LLMs to safely read, manipulate, parse, and process feed criteria.
+- Transitioning static summary endpoints into automated parallel feed processing with rate-limited backend batching layers.
+
+### Phase 3: Observability, Watchers, & Evals
+- Building an internal automated "Watchers" network for real-time tracking, evaluation, and system health checks.
+- Integrating LangSmith to implement evaluation datasets, monitoring traces, and strict quality guardrails for LLM processing pipelines.
+
 ## App Name
 Newsly
 

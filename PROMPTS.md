@@ -23,3 +23,69 @@ Restructured route: feeds parsed in parallel into a flat item list, then summari
 NOTE: The original "Summary unavailable" was caused by the decommissioned model (fixed in the previous task), not timeouts — the last run before this change already showed 0/15 failures. These changes are still valid resilience hardening against real Groq slowness/rate limits.
 
 ---
+## Add README.md
+Date: 2026-05-27
+Prompt:
+Create a README.md with: app name Newsly, one-line description, screenshot placeholder ("screenshot coming soon"), tech stack list, how to run locally (npm install, add GROQ_API_KEY to .env.local, npm run dev), live demo link placeholder ("Coming soon"). Keep it clean and short.
+
+Result:
+Created README.md with all requested sections. Tech stack lists the actual working model `llama-3.1-8b-instant` (not the decommissioned llama3-8b-8192).
+
+---
+## Dockerize — multi-stage Dockerfile + .dockerignore
+Date: 2026-06-11
+Prompt:
+Create a production-optimized, multi-stage Dockerfile for this Next.js 14 app to minimize final image size. Architecture: (1) Stage 1 (deps) installs deps from package.json; (2) Stage 2 (builder) copies source, runs `npm run build`, leverages Next.js standalone output; (3) Stage 3 (runner) uses a minimal alpine base, copies only production static assets + standalone build files, exposes port 3000, sets entry runtime. Add a comprehensive .dockerignore excluding .next, node_modules, and local env files. Log the final build and execution commands to PROMPTS.md.
+
+Result:
+- next.config.js: added `output: "standalone"` so Next emits `.next/standalone/server.js` with a trimmed node_modules.
+- Dockerfile (3 stages, all `node:20-alpine`):
+  - deps: `apk add libc6-compat`, `npm ci` (falls back to `npm install` if no lockfile).
+  - builder: reuses deps node_modules, copies source, `npm run build`, telemetry off.
+  - runner: non-root `nextjs:nodejs` user, copies only `/app/public`, `/app/.next/standalone`, `/app/.next/static`, ENV `NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0`, EXPOSE 3000, CMD `node server.js`.
+- public/.gitkeep added so the runner `COPY public` step succeeds (project had no public dir).
+- .dockerignore excludes: node_modules, .next, out, build, dist, .env*, .git*, Dockerfile, .dockerignore, docker-compose*, *.md, .vscode, .idea, .DS_Store, coverage, *.log, .cache, .eslintcache, .turbo.
+
+Final build + run commands:
+```bash
+docker build -t newsly:latest .
+docker run --rm -p 3000:3000 --env-file .env.local newsly:latest
+```
+Or pass the key inline:
+```bash
+docker run --rm -p 3000:3000 -e GROQ_API_KEY=your_key_here newsly:latest
+```
+Then open http://localhost:3000.
+
+---
+## Week 2 Day 3 — Docker Compose
+Date: 2026-06-15
+Prompt:
+Create a production-ready `docker-compose.yml` file in our root workspace directory. Ensure the following configuration layout: (1) Define a core web service named 'newsly'. (2) Configure it to build dynamically from our local root directory context using our existing multi-stage 'Dockerfile'. (3) Explicitly map host port 3000 to container port 3000. (4) Pass through our environment configuration by explicitly setting the service to load variables from our local `.env.local` file. Also, append the exact docker-compose execution terminal commands (how to boot up clusters in detached mode, how to check logs, and how to teardown/stop the stack) into our local PROMPTS.md file under a new section titled "## Week 2 Day 3 — Docker Compose".
+
+Result:
+Created docker-compose.yml at repo root with a single `newsly` service: `build.context: .` + `build.dockerfile: Dockerfile` (reuses the existing 3-stage build), `ports: "3000:3000"`, `env_file: .env.local`, and `restart: unless-stopped`. Omitted the obsolete top-level `version:` key (Compose v2 ignores it).
+
+Docker Compose execution commands:
+```bash
+# Boot up the stack in detached mode (builds image on first run)
+docker compose up -d --build
+
+# Check / follow logs for the newsly service
+docker compose logs -f newsly
+
+# Teardown / stop the stack (and remove containers + network)
+docker compose down
+```
+Then open http://localhost:3000.
+
+---
+## Week 2 Day 3 — CLAUDE.md roadmap section
+Date: 2026-06-15
+Prompt:
+Update `CLAUDE.md` to include a new section titled "## Long-Term Project Vision & Roadmap" right below the Project overview. Inject the Phase 1 (Infrastructure & Orchestration), Phase 2 (AI Agents & Custom Tools), and Phase 3 (Observability, Watchers, & Evals) architecture tracks exactly. Ensure the original project rules, RSS sources, and prompt logging specifications are preserved exactly during this update.
+
+Result:
+Inserted "## Long-Term Project Vision & Roadmap" into CLAUDE.md directly below the Project overview and above "## App Name", containing the three phase tracks verbatim. All other sections (App Name, Tech Stack, Rules, RSS Sources, What NOT to do, Prompt Logging) left byte-for-byte unchanged.
+
+---
