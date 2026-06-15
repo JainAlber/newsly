@@ -23,12 +23,23 @@ const FEEDS = [
   },
 ];
 
-const BATCH_SIZE = 3;
-const BATCH_DELAY_MS = 500;
-const GROQ_TIMEOUT_MS = 8000;
+// Operational tunables — overridable via env, with the original values as
+// fallbacks so behavior is unchanged when unset.
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 3;
+const BATCH_DELAY_MS = Number(process.env.BATCH_DELAY_MS) || 500;
+const GROQ_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 8000;
+const RSS_TIMEOUT_MS = Number(process.env.RSS_TIMEOUT_MS) || 10000;
 
-const parser = new Parser();
+// Fail fast on a hung feed instead of eating the whole maxDuration budget.
+const parser = new Parser({ timeout: RSS_TIMEOUT_MS });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+// Surface a missing key once at module load — calls still degrade gracefully
+// to placeholder bullets, but the misconfiguration is now visible in logs.
+if (!process.env.GROQ_API_KEY) {
+  logger.warn("GROQ_API_KEY is not set — summaries will fall back to placeholders");
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,7 +67,7 @@ async function callGroq(title, description) {
 
   const completion = await groq.chat.completions.create(
     {
-      model: "llama-3.1-8b-instant",
+      model: GROQ_MODEL,
       messages: [
         {
           role: "user",

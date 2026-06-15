@@ -183,3 +183,24 @@ Created `DEPLOYMENT.md` (project root) with all 7 sections:
 Cross-referenced CLAUDE.md (rules) and PROMPTS.md (change log) in the header. No code changed.
 
 ---
+## Week 2 Day 7 — Autonomous code audit + hardcoded-value fixes
+Date: 2026-06-15
+Prompt:
+Read the entire Newsly codebase (CLAUDE.md, all files in /app, /lib). Then autonomously, without asking: (1) identify hardcoded values that should be env vars; (2) identify missing error handling in the API route; (3) write AUDIT.md listing findings with file names + line numbers; (4) fix hardcoded values by moving them to .env.local and referencing via process.env. Do all steps without confirmation.
+
+Result:
+- Read all source: CLAUDE.md, app/layout.js, app/page.js, app/globals.css, app/api/news/route.js, lib/logger.js.
+- Created `AUDIT.md` (root): tables of 7 hardcoded-value findings (H1–H7) + 6 error-handling findings (E1–E6), each with file:line, verdict, status.
+- Fixed hardcoded values in `app/api/news/route.js` (all non-breaking via `process.env.X || default`):
+  - H1 model `llama-3.1-8b-instant` → `GROQ_MODEL`.
+  - H2 `GROQ_TIMEOUT_MS`, H3 `BATCH_SIZE`, H4 `BATCH_DELAY_MS` → env-backed `Number(process.env.X) || <default>`.
+  - H5 (3 RSS feeds) intentionally kept as code — canonical app config per CLAUDE.md, not env/secret; documented rationale.
+- Fixed 2 error-handling gaps found:
+  - E1: missing `GROQ_API_KEY` is now surfaced via a module-load `logger.warn` (still degrades gracefully, no throw).
+  - E2: `rss-parser` had no per-feed timeout (default ~60s vs `maxDuration=30`) → constructed `new Parser({ timeout: RSS_TIMEOUT_MS })` (default 10000ms) so a hung feed fails fast into the existing catch.
+- Env wiring: appended `GROQ_MODEL`, `GROQ_TIMEOUT_MS`, `BATCH_SIZE`, `BATCH_DELAY_MS`, `RSS_TIMEOUT_MS` to `.env.local` (via Add-Content — did NOT read/expose the existing `GROQ_API_KEY` value). Created committable `.env.local.example` template documenting all vars.
+- Verified: `git check-ignore` confirms `.env.local` ignored + `.env.local.example` tracked; `npx next lint` clean; `npm run build` compiles. All defaults preserve original behavior.
+
+NOTE: secret hygiene — only non-secret config defaults were written to .env.local; the real GROQ_API_KEY was never read. The 5 new vars are optional (fallbacks baked in), so no .env change is required for the app to keep working as before.
+
+---
