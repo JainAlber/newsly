@@ -204,3 +204,19 @@ Result:
 NOTE: secret hygiene — only non-secret config defaults were written to .env.local; the real GROQ_API_KEY was never read. The 5 new vars are optional (fallbacks baked in), so no .env change is required for the app to keep working as before.
 
 ---
+## Week 2 Day 8 — Explicit retry loop with MAX_RETRIES ceiling
+Date: 2026-06-15
+Prompt:
+Upgrade Groq summarization in route.js to an explicit retry loop with a hard ceiling. Replace current retry logic with a while loop tracking attempt count; MAX_RETRIES from process.env.MAX_RETRIES fallback 3; on each failed attempt log warn with attempt number + reason; if exhausted log error + return bullet fallback; on success break out immediately. Add MAX_RETRIES to .env.local (value 3) and .env.local.example. Do not change other logic. Verify with lint + build. Append to PROMPTS.md.
+
+Result:
+- `app/api/news/route.js`:
+  - Added `const MAX_RETRIES = Number(process.env.MAX_RETRIES) || 3;` to the tunables block.
+  - Rewrote `summarize()`: `let attempt = 0; while (attempt < MAX_RETRIES) { attempt += 1; try { ...callGroq → log success (now includes `attempt`) → return } catch (err) { logger.warn("Groq summarization attempt failed", { title, source, attempt, max_retries, reason: err.message }) } }`. After the loop: `logger.error("Groq summarization exhausted retries, using fallback", { title, source, attempts })` then `return placeholderBullets(title)`. Success `return` exits the loop immediately.
+  - Untouched: `callGroq`, `fetchFeedItems`, `GET`, batching, timeouts, fallback content.
+- `.env.local`: appended `MAX_RETRIES=3` (Add-Content; GROQ_API_KEY never read). `.env.local.example`: added `MAX_RETRIES=3`.
+- Verified: `npx next lint` clean; `npm run build` compiles.
+
+NOTE — behavior change (intended by spec): old logic did 2 Groq attempts (1 initial + 1 retry); new default does up to 3 attempts (MAX_RETRIES=3) before fallback. One extra attempt per failing article in the worst case → marginally more Groq calls / latency under sustained failure. Tunable down via the env var if needed.
+
+---

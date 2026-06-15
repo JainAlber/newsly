@@ -30,6 +30,7 @@ const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 3;
 const BATCH_DELAY_MS = Number(process.env.BATCH_DELAY_MS) || 500;
 const GROQ_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 8000;
 const RSS_TIMEOUT_MS = Number(process.env.RSS_TIMEOUT_MS) || 10000;
+const MAX_RETRIES = Number(process.env.MAX_RETRIES) || 3;
 
 // Fail fast on a hung feed instead of eating the whole maxDuration budget.
 const parser = new Parser({ timeout: RSS_TIMEOUT_MS });
@@ -94,42 +95,41 @@ async function callGroq(title, description) {
   return bullets;
 }
 
-// Timeout once, retry once, then fall back to a placeholder.
+// Retry up to MAX_RETRIES times, then fall back to a placeholder.
 async function summarize(title, description, source) {
   const shortTitle = title.slice(0, 50);
   logger.info("Groq summarization started", { title: shortTitle, source });
   const started = Date.now();
-  try {
-    const bullets = await callGroq(title, description);
-    logger.info("Article summary succeeded", {
-      title: shortTitle,
-      source,
-      duration_ms: Date.now() - started,
-    });
-    return bullets;
-  } catch (err) {
-    logger.warn("Groq summarization failed, retrying", {
-      title: shortTitle,
-      source,
-      error: err.message,
-    });
+
+  let attempt = 0;
+  while (attempt < MAX_RETRIES) {
+    attempt += 1;
     try {
       const bullets = await callGroq(title, description);
       logger.info("Article summary succeeded", {
         title: shortTitle,
         source,
+        attempt,
         duration_ms: Date.now() - started,
       });
       return bullets;
-    } catch (err2) {
-      logger.error("Groq summarization failed, using fallback", {
+    } catch (err) {
+      logger.warn("Groq summarization attempt failed", {
         title: shortTitle,
         source,
-        error: err2.message,
+        attempt,
+        max_retries: MAX_RETRIES,
+        reason: err.message,
       });
-      return placeholderBullets(title);
     }
   }
+
+  logger.error("Groq summarization exhausted retries, using fallback", {
+    title: shortTitle,
+    source,
+    attempts: MAX_RETRIES,
+  });
+  return placeholderBullets(title);
 }
 
 async function fetchFeedItems({ name, url }) {

@@ -37,6 +37,8 @@ Newsly
 - Use structured JSON logging in all API routes via /lib/logger.js
 - Log fields: level, timestamp, message, and any relevant context
 - Never use raw console.log in API routes
+- API route retry logic uses explicit loop with MAX_RETRIES cap — never retry indefinitely
+- Failed attempts are logged at warn, terminal failure at error
 
 ## RSS Sources
 - TechCrunch AI: https://techcrunch.com/category/artificial-intelligence/feed/
