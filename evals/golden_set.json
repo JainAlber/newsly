@@ -1,0 +1,62 @@
+[
+  {
+    "id": "eval_001",
+    "article_title": "OpenAI Releases GPT-5 with Native Agentic Tool Use",
+    "article_content": "OpenAI announced GPT-5, its next flagship model, featuring native agentic capabilities that let it plan and execute multi-step tasks across external tools without custom orchestration. The company says GPT-5 reduces hallucination rates by roughly 40 percent versus GPT-4 and ships with a 1 million token context window. It is available today via the API and to ChatGPT Pro subscribers.",
+    "expected": {
+      "bullet_count": 3,
+      "min_bullet_length": 20,
+      "max_bullet_length": 200,
+      "must_mention": ["GPT-5"],
+      "must_not_mention": ["hallucinated", "I cannot", "As an AI"]
+    }
+  },
+  {
+    "id": "eval_002",
+    "article_title": "Google DeepMind's Gemini 3 Tops Math and Coding Benchmarks",
+    "article_content": "Google DeepMind unveiled Gemini 3, claiming state-of-the-art results on the AIME math competition and the SWE-bench coding benchmark. The model uses a new mixture-of-experts architecture that activates only a fraction of its parameters per query to cut inference cost. Gemini 3 will roll out across Google Search, Workspace, and the Gemini app over the coming weeks.",
+    "expected": {
+      "bullet_count": 3,
+      "min_bullet_length": 20,
+      "max_bullet_length": 200,
+      "must_mention": ["Gemini 3"],
+      "must_not_mention": ["hallucinated", "I cannot", "As an AI"]
+    }
+  },
+  {
+    "id": "eval_003",
+    "article_title": "Anthropic Launches Claude for Enterprise with On-Prem Deployment",
+    "article_content": "Anthropic introduced Claude for Enterprise, adding single sign-on, audit logging, and the option to deploy Claude inside a customer's own virtual private cloud. The release targets regulated industries such as finance and healthcare that cannot send data to third-party servers. Anthropic said the offering includes a higher context window and dedicated capacity to guarantee throughput.",
+    "expected": {
+      "bullet_count": 3,
+      "min_bullet_length": 20,
+      "max_bullet_length": 200,
+      "must_mention": ["Anthropic"],
+      "must_not_mention": ["hallucinated", "I cannot", "As an AI"]
+    }
+  },
+  {
+    "id": "eval_004",
+    "article_title": "Meta Open-Sources Llama 4 Under a Permissive Commercial License",
+    "article_content": "Meta released Llama 4 as an open-weights model family ranging from 8 billion to 400 billion parameters, available under a license that permits commercial use for most companies. The largest variant is natively multimodal, handling text, images, and audio in a single model. Meta said it trained Llama 4 on a cluster of more than 100,000 GPUs.",
+    "expected": {
+      "bullet_count": 3,
+      "min_bullet_length": 20,
+      "max_bullet_length": 200,
+      "must_mention": ["Llama 4"],
+      "must_not_mention": ["hallucinated", "I cannot", "As an AI"]
+    }
+  },
+  {
+    "id": "eval_005",
+    "article_title": "Mistral AI Raises $2B to Build European Sovereign AI Infrastructure",
+    "article_content": "French startup Mistral AI raised a $2 billion funding round to expand its open-weight model lineup and build data centers within the European Union. The company positions itself as a sovereign alternative to US labs, emphasizing data residency and compliance with the EU AI Act. The round values Mistral at roughly $14 billion.",
+    "expected": {
+      "bullet_count": 3,
+      "min_bullet_length": 20,
+      "max_bullet_length": 200,
+      "must_mention": ["Mistral"],
+      "must_not_mention": ["hallucinated", "I cannot", "As an AI"]
+    }
+  }
+]

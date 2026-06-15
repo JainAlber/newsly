@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "modulePathIgnorePatterns": ["<rootDir>/.next/"],
+    "transform": {
+      "^.+\\.js$": [
+        "babel-jest",
+        { "presets": [["@babel/preset-env", { "targets": { "node": "current" } }]] }
+      ]
+    }
   },
   "dependencies": {
     "groq-sdk": "^1.2.0",
@@ -16,9 +27,12 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.29.7",
     "autoprefixer": "^10.4.19",
+    "babel-jest": "^30.4.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.35",
+    "jest": "^30.4.2",
     "postcss": "^8.4.39",
     "tailwindcss": "^3.4.4"
   }

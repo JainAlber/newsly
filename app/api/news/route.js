@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Parser from "rss-parser";
 import Groq from "groq-sdk";
 import { logger } from "../../../lib/logger";
+import { envInt, clampPositive } from "../../../lib/utils";
 
 // RSS feeds change often; always fetch fresh.
 export const dynamic = "force-dynamic";
@@ -26,11 +27,13 @@ const FEEDS = [
 // Operational tunables — overridable via env, with the original values as
 // fallbacks so behavior is unchanged when unset.
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
-const BATCH_SIZE = Number(process.env.BATCH_SIZE) || 3;
-const BATCH_DELAY_MS = Number(process.env.BATCH_DELAY_MS) || 500;
-const GROQ_TIMEOUT_MS = Number(process.env.GROQ_TIMEOUT_MS) || 8000;
-const RSS_TIMEOUT_MS = Number(process.env.RSS_TIMEOUT_MS) || 10000;
-const MAX_RETRIES = Number(process.env.MAX_RETRIES) || 3;
+// BATCH_SIZE drives the loop stride below — clamp to >= 1 so a 0/negative
+// override can never hang the batch loop (H3).
+const BATCH_SIZE = clampPositive(envInt("BATCH_SIZE", 3), 1);
+const BATCH_DELAY_MS = envInt("BATCH_DELAY_MS", 500);
+const GROQ_TIMEOUT_MS = envInt("GROQ_TIMEOUT_MS", 8000);
+const RSS_TIMEOUT_MS = envInt("RSS_TIMEOUT_MS", 10000);
+const MAX_RETRIES = envInt("MAX_RETRIES", 3);
 
 // Fail fast on a hung feed instead of eating the whole maxDuration budget.
 const parser = new Parser({ timeout: RSS_TIMEOUT_MS });

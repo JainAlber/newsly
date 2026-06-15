@@ -234,3 +234,33 @@ Result:
 NOTE — scope/behavior: cache is per-request (recreated each GET), so it dedupes only the *same URL appearing twice within one response* (e.g. overlapping feeds) — it does NOT persist across requests. That matches the stated "per-request, in-memory, demonstrate checkpoint logic" goal. Within a single batch, `Promise.all` runs concurrently so two identical URLs in the *same* batch could both miss before either stores; dedup is reliable across batches (sequential). In practice feed items are distinct URLs, so hits are rare — the value here is the checkpoint pattern, not a measurable speedup.
 
 ---
+
+---
+## Hostile code review — /simplereview
+Date: 2026-06-16
+Prompt:
+/simplereview — senior engineer hostile code review of all source files. For each file check hallucinated API usage, type mismatches, security issues, error-handling gaps, performance, dead code. Find at least 3 real issues. Write findings to CODE_REVIEW_SIMPLE.md with today's date. Review only, no fixes. Score /100, -5 per issue.
+
+Result:
+Reviewed app/api/news/route.js, lib/logger.js, app/page.js, app/layout.js, next.config.js (MCP newsly-server not in repo). Found 7 issues: (1) Number(env)||fallback ignores 0; (2) retry loop no backoff + retries non-retryable errors; (3) worst-case latency ~122s blows past maxDuration=30; (4) summaryCache dead for its stated interrupt/resume purpose + intra-batch race; (5) raw err.message leaked to client; (6) index React key on reorderable list + unguarded a.bullets; (7) force-dynamic + no cache hammers Groq every request. Score: 65/100. No code changed.
+
+
+---
+## Brutal pre-prod review — /brutalreview
+Date: 2026-06-16
+Prompt:
+/brutalreview — principal engineer + security auditor, ruthless pre-production review of all source files. Run correctness, types/data, security, error handling, performance/reliability, code quality, and agent-specific checks. Group findings CRITICAL/HIGH/MEDIUM/LOW with file:line, why-it-matters, exact fix. Write to CODE_REVIEW_BRUTAL.md. Score /100 (CRIT -20, HIGH -10, MED -5, LOW -2). Review only.
+
+Result:
+Reviewed route.js, logger.js, page.js, layout.js, next.config.js, postcss/tailwind configs (MCP newsly-server not in repo). 0 CRITICAL, 4 HIGH (maxDuration overrun ~122s defeats fallback; Number(env)||0 coercion; no bound check on BATCH_SIZE → infinite/negative loop; unauthenticated endpoint amplifies to ~15 Groq calls = wallet-DoS), 6 MEDIUM (retry no backoff; err.message leak; force-dynamic no cache; dead summaryCache + intra-batch race; index React key; unguarded a.bullets), 2 LOW (maxDuration magic; placeholder empty-string padding). Score 26/100 — do not ship. Cleared: logger, SDK API usage, deps, no hardcoded secrets. No code changed.
+
+
+---
+## Phase 1 — Unit tests for route.js utils + CI test job
+Date: 2026-06-16
+Prompt:
+Add unit tests for the utility functions in route.js and set them up to run in CI. (1) Install Jest as devDependency, configure for ES modules in package.json. (2) Create /lib/utils.js extracting two pure functions from route.js: envInt(name,def) (H2 fix — handles 0 and NaN) and clampPositive(value,min) (H3 fix). (3) Update route.js to import and use them instead of inline logic. (4) Create /lib/utils.test.js covering envInt (normal, missing fallback, NaN fallback, zero, negative, "garbage") and clampPositive (normal, zero, negative, below min). (5) Add "test":"jest" script. (6) Update .github/workflows/ci.yml with a test job (checkout, Node 20, npm ci, npm test) that build-and-push needs alongside lint. Don't change other logic. Verify tests pass locally.
+
+Result:
+Installed jest@^30, babel-jest@^30, @babel/preset-env@^7 as devDeps. ESM enabled via inline package.json jest config (babel-jest transform with preset-env targeting current node) — kept project CommonJS so config files (postcss/tailwind/next.config) and Next SWC stay intact; "test":"jest" literal as specified. Created lib/utils.js (envInt uses Number.isFinite so explicit 0 preserved, NaN falls back; clampPositive = Math.max(value,min)). route.js now imports both; BATCH_SIZE = clampPositive(envInt("BATCH_SIZE",3),1), other numeric envs via envInt. lib/utils.test.js: 10 tests, all passing locally (npm test → 10/10). Added modulePathIgnorePatterns for .next to silence a haste collision (local-only; .next not committed). ci.yml: new test job (checkout, setup-node 20, npm ci, npm test); build-and-push now needs:[lint, test]. No other logic changed.
+
