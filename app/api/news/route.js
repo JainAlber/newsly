@@ -159,18 +159,33 @@ export async function GET() {
     const itemLists = await Promise.all(FEEDS.map(fetchFeedItems));
     const items = itemLists.flat();
 
+    // Per-request checkpoint: completed summaries are cached by article URL so
+    // work is never redone if the batch loop is interrupted and resumed.
+    // In-memory only — lives for the duration of this request, no disk/deps.
+    const summaryCache = new Map();
+
     // Summaries are the expensive part — process in batches of 3 with a
     // 500ms gap between batches to avoid hammering Groq all at once.
     const articles = [];
     for (let i = 0; i < items.length; i += BATCH_SIZE) {
       const batch = items.slice(i, i + BATCH_SIZE);
       const summarized = await Promise.all(
-        batch.map(async (it) => ({
-          title: it.title,
-          link: it.link,
-          source: it.source,
-          bullets: await summarize(it.title, it.description, it.source),
-        }))
+        batch.map(async (it) => {
+          let bullets;
+          if (summaryCache.has(it.link)) {
+            logger.info("cache hit", { title: it.title });
+            bullets = summaryCache.get(it.link);
+          } else {
+            bullets = await summarize(it.title, it.description, it.source);
+            summaryCache.set(it.link, bullets);
+          }
+          return {
+            title: it.title,
+            link: it.link,
+            source: it.source,
+            bullets,
+          };
+        })
       );
       articles.push(...summarized);
       if (i + BATCH_SIZE < items.length) await sleep(BATCH_DELAY_MS);

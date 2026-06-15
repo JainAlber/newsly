@@ -220,3 +220,17 @@ Result:
 NOTE — behavior change (intended by spec): old logic did 2 Groq attempts (1 initial + 1 retry); new default does up to 3 attempts (MAX_RETRIES=3) before fallback. One extra attempt per failing article in the worst case → marginally more Groq calls / latency under sustained failure. Tunable down via the env var if needed.
 
 ---
+## Week 2 Day 9 — In-memory per-request checkpoint cache
+Date: 2026-06-15
+Prompt:
+Add a lightweight in-memory checkpoint map to the GET handler in route.js. Inside GET, create a Map `summaryCache` before the batch loop; after each successful article summary store the result keyed by article URL; before calling summarize() check the cache first and on hit use the cached result + log info "cache hit" with the article title. In-memory only (per-request), no disk/deps. Goal: demonstrate checkpoint logic — completed work never redone even if the batch loop is interrupted and resumed. Do not change other logic. Verify with lint + build. Append to PROMPTS.md.
+
+Result:
+- `app/api/news/route.js` GET handler: added `const summaryCache = new Map();` before the batch loop. Batch map callback now: `if (summaryCache.has(it.link)) { logger.info("cache hit", { title: it.title }); bullets = summaryCache.get(it.link); } else { bullets = await summarize(...); summaryCache.set(it.link, bullets); }` then returns the article object with those bullets. Keyed by article URL (`it.link`).
+- In-memory only — Map is a local const inside GET, lives only for the request; no disk writes, no new dependencies.
+- Untouched: feed fetch, batching size/delay, summarize/retry, logging elsewhere, response shape.
+- Verified: `npx next lint` clean; `npm run build` compiles.
+
+NOTE — scope/behavior: cache is per-request (recreated each GET), so it dedupes only the *same URL appearing twice within one response* (e.g. overlapping feeds) — it does NOT persist across requests. That matches the stated "per-request, in-memory, demonstrate checkpoint logic" goal. Within a single batch, `Promise.all` runs concurrently so two identical URLs in the *same* batch could both miss before either stores; dedup is reliable across batches (sequential). In practice feed items are distinct URLs, so hits are rare — the value here is the checkpoint pattern, not a measurable speedup.
+
+---
