@@ -104,3 +104,15 @@ Result:
 NOTE: package.json has a `lint` script (`next lint`) but no eslint devDependency or eslint config committed. On a clean CI runner `npx next lint` may attempt to install/scaffold ESLint and could fail or behave non-interactively. If the lint job breaks, add `eslint` + `eslint-config-next` to devDependencies and commit a `.eslintrc.json` (`{ "extends": "next/core-web-vitals" }`).
 
 ---
+## Week 2 Day 4 — ESLint setup for CI
+Date: 2026-06-15
+Prompt:
+Add eslint and eslint-config-next as devDependencies, and create .eslintrc.json with content {"extends":"next/core-web-vitals"}. Run npm install after. Then append to PROMPTS.md.
+
+Result:
+- package.json devDependencies: added `eslint: ^8.57.0` and `eslint-config-next: ^14.2.35` (eslint 8 line — eslint-config-next 14 requires ESLint 8, not 9).
+- Created `.eslintrc.json` → `{"extends":"next/core-web-vitals"}`.
+- Ran `npm install`: added 284 packages, package-lock.json updated. (npm flagged 5 vulns + deprecation warnings on transitive eslint deps — expected for eslint 8 toolchain, not blocking.)
+- Verified `npx next lint` → "✔ No ESLint warnings or errors". The CI lint job will now pass deterministically instead of scaffolding ESLint at runtime.
+
+---
