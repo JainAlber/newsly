@@ -264,3 +264,23 @@ Add unit tests for the utility functions in route.js and set them up to run in C
 Result:
 Installed jest@^30, babel-jest@^30, @babel/preset-env@^7 as devDeps. ESM enabled via inline package.json jest config (babel-jest transform with preset-env targeting current node) — kept project CommonJS so config files (postcss/tailwind/next.config) and Next SWC stay intact; "test":"jest" literal as specified. Created lib/utils.js (envInt uses Number.isFinite so explicit 0 preserved, NaN falls back; clampPositive = Math.max(value,min)). route.js now imports both; BATCH_SIZE = clampPositive(envInt("BATCH_SIZE",3),1), other numeric envs via envInt. lib/utils.test.js: 10 tests, all passing locally (npm test → 10/10). Added modulePathIgnorePatterns for .next to silence a haste collision (local-only; .next not committed). ci.yml: new test job (checkout, setup-node 20, npm ci, npm test); build-and-push now needs:[lint, test]. No other logic changed.
 
+
+---
+## Phase 3 — Golden eval set for summarization quality
+Date: 2026-06-16
+Prompt:
+Create a golden eval test set for Newsly's summarization quality. (1) Create /evals/golden_set.json — array of 5 eval examples, each with id, article_title, article_content (2-3 sentence real/plausible AI news story), and expected {bullet_count, min_bullet_length, max_bullet_length, must_mention, must_not_mention}. Use realistic AI news (OpenAI, Google, Anthropic, Meta, etc.). (2) Create /evals/README.md explaining what the golden set is, how to add examples, what each expected field means, how to run evals manually, and what Ragas is / why it matters for LLM pipelines.
+
+Result:
+Created evals/golden_set.json with 5 examples (eval_001..eval_005): GPT-5 agentic tool use, Gemini 3 benchmarks, Claude for Enterprise on-prem, Llama 4 open weights, Mistral $2B raise. Each has bullet_count 3, length bounds 20/200, a must_mention subject term, and shared must_not_mention refusal/hallucination markers. Validated: parses as 5-element array. Created evals/README.md: purpose (non-deterministic LLM regression guardrail, Phase 3), per-field schema table, add-example steps, manual run process (npm run dev → feed title+content through route summarize path → check 4 assertion classes per id), planned evals/run.mjs runner, and a Ragas section (faithfulness/relevancy/context metrics, why scored evals beat exact-match for non-deterministic news summaries, LangSmith integration tie-in). No app logic changed.
+
+
+---
+## Phase 1 — npm audit security job in CI
+Date: 2026-06-16
+Prompt:
+Add npm audit to the CI pipeline as a security check. New job "security": runs-on ubuntu-latest, same triggers, steps checkout / setup Node 20 / npm ci / npm audit --audit-level=high. lint and test must NOT depend on security (all three parallel); only build-and-push needs all three (needs: [lint, test, security]). Push and verify pipeline goes green.
+
+Result:
+Added security job to .github/workflows/ci.yml (checkout, setup-node 20, npm ci, npm audit). build-and-push now needs:[lint, test, security]; lint/test/security all run in parallel (no inter-dependency). DEVIATION FROM SPEC (user-approved): the requested --audit-level=high FAILS locally (exit 1) — there are 4 real high-severity vulns (next@14.2.35 multiple DoS/SSRF/XSS/cache-poisoning advisories; glob CLI command injection via eslint-config-next), fixable only by major breaking upgrades (next@16, eslint-config-next@16). Asked the user how to proceed; user chose to raise the threshold to --audit-level=critical (0 critical today -> exit 0 -> green). Verified locally: npm audit --audit-level=critical exits 0. The 4 high + 18 moderate vulns remain unremediated and are no longer enforced by CI — tracked as follow-up. Note: gh CLI not installed in env, so post-push run status must be confirmed via the GitHub Actions web UI.
+
