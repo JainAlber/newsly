@@ -116,3 +116,36 @@ Result:
 - Verified `npx next lint` → "✔ No ESLint warnings or errors". The CI lint job will now pass deterministically instead of scaffolding ESLint at runtime.
 
 ---
+## Week 2 Day 5 — Railway auto-deploy job in CI/CD
+Date: 2026-06-15
+Prompt:
+Update CLAUDE.md CI/CD Pipeline section (RAILWAY_TOKEN/RAILWAY_PROJECT_ID saved as GitHub Secrets; a third `deploy` job triggers a Railway redeploy after the image is pushed to GHCR; Railway project live at the generated Railway domain). Then append a third job to ci.yml that triggers a Railway redeploy after the Docker image is pushed to GHCR — edit existing file, only append. Job: named `deploy`, needs build-and-push, runs only on push to master (not PRs), single curl step POSTing to https://backboard.railway.app/graphql/v2 with RAILWAY_TOKEN + RAILWAY_PROJECT_ID secrets, GraphQL mutation serviceInstanceRedeploy passing projectId. Append to PROMPTS.md per logging rules.
+
+Result:
+- CLAUDE.md: CI/CD Pipeline section now lists deploy as job 3, plus bullets for Railway secrets, the serviceInstanceRedeploy GraphQL call, and the live Railway domain. (Removed the two stray loose bullets, folded into the structured list.)
+- .github/workflows/ci.yml: appended `deploy` job only (lint + build-and-push untouched). `needs: build-and-push`, `if: github.event_name == 'push' && github.ref == 'refs/heads/master'` (master-only, skips PRs). Single step: secrets exposed via `env:` (RAILWAY_TOKEN, RAILWAY_PROJECT_ID) rather than inline `${{ }}` so they don't leak into the curl command line / logs; curl POSTs to `https://backboard.railway.app/graphql/v2` with `Authorization: Bearer $RAILWAY_TOKEN` and body `mutation { serviceInstanceRedeploy(projectId: \"$RAILWAY_PROJECT_ID\") }`.
+
+CAVEAT — likely needs adjustment to actually work: Railway's real `serviceInstanceRedeploy` mutation signature takes `serviceId` and `environmentId` (and a `commitSha`/`latest` arg), NOT `projectId` alone. Wrote it with `projectId` exactly as the task specified, but the redeploy may 400 until the args are corrected to the real schema (and a RAILWAY_SERVICE_ID + RAILWAY_ENVIRONMENT_ID secret added). Verify against Railway's current Public API docs before relying on it. Also did not run/validate the workflow (no push performed).
+
+---
+## Week 2 Day 5 — Fix Railway redeploy mutation (serviceId + environmentId)
+Date: 2026-06-15
+Prompt:
+Fix the deploy job in ci.yml. The Railway serviceInstanceRedeploy mutation requires serviceId and environmentId, not projectId alone. Update the curl step to use serviceInstanceRedeploy(serviceId, environmentId), passing both from GitHub Secrets RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID via the env block (not inline). Also update CLAUDE.md CI/CD section to replace RAILWAY_PROJECT_ID with RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID. Append to PROMPTS.md per logging rules.
+
+Result:
+- .github/workflows/ci.yml deploy job: env block now exposes `RAILWAY_TOKEN`, `RAILWAY_SERVICE_ID`, `RAILWAY_ENVIRONMENT_ID` (dropped `RAILWAY_PROJECT_ID`). curl body now `mutation { serviceInstanceRedeploy(serviceId: \"$RAILWAY_SERVICE_ID\", environmentId: \"$RAILWAY_ENVIRONMENT_ID\") }`. Secrets still injected via env (not inline) so they stay out of logs. Job structure (needs build-and-push, master-only `if`) unchanged.
+- CLAUDE.md CI/CD section: secrets bullet now lists RAILWAY_TOKEN + RAILWAY_SERVICE_ID + RAILWAY_ENVIRONMENT_ID; deploy-job bullet notes the serviceId + environmentId args. This resolves the caveat flagged in the previous entry.
+
+NOTE: New secrets RAILWAY_SERVICE_ID and RAILWAY_ENVIRONMENT_ID must be added in the GitHub repo settings (Settings → Secrets and variables → Actions); RAILWAY_PROJECT_ID is now unused and can be removed. Find the service/environment IDs in the Railway dashboard URL or via `railway status`. Workflow not run/validated (no push performed).
+
+---
+## Week 2 Day 5 — Subtitle tweak to test deploy pipeline
+Date: 2026-06-15
+Prompt:
+In app/page.js, change the subtitle text from "Your daily AI news briefing" to "Your daily AI news briefing ✦" — just a tiny visible change to test the deploy pipeline. Do not change anything else.
+
+Result:
+- app/page.js line 35: subtitle now "Your daily AI news briefing ✦". No other changes. Intended as a trivial visible diff to exercise the full CI/CD → GHCR → Railway redeploy pipeline on the next push to master.
+
+---

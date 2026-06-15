@@ -69,5 +69,9 @@ Do this automatically after every prompt without being asked.
 - Jobs (in order):
   1. lint — runs ESLint on the codebase
   2. build-and-push — builds the Docker image, pushes to GHCR on master only
+  3. deploy — triggers a Railway redeploy after the image is pushed to GHCR (master only)
 - The GROQ_API_KEY build arg uses the placeholder value during CI
 - Vercel deploy continues to trigger automatically and is separate
+- RAILWAY_TOKEN, RAILWAY_SERVICE_ID, and RAILWAY_ENVIRONMENT_ID are saved as GitHub Secrets
+- The deploy job calls the Railway GraphQL API (serviceInstanceRedeploy with serviceId + environmentId) to redeploy
+- Railway project is live at the generated Railway domain
