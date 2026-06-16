@@ -312,3 +312,13 @@ Result:
 NOTE — required setup before it works: add a `WATCHER_TOKEN` GitHub Actions secret (token needs pull_request read + issues/PR write to comment and label). `GROQ_API_KEY` secret already exists from the deploy pipeline. The workflow installs deps via working-directory: watcher (separate package.json from root), and `node watcher/index.js` resolves watcher/node_modules. node-fetch v3 is ESM-only, hence "type":"module".
 
 
+---
+## Phase 3 — Subtitle bump to trigger Watcher PR test
+Date: 2026-06-16
+Prompt:
+In app/page.js, change the subtitle from "Your daily AI news briefing ✦" to "Your daily AI news briefing ✦ v2" — tiny change to trigger a PR for Watcher testing.
+
+Result:
+app/page.js line 35: subtitle now "Your daily AI news briefing ✦ v2". One-character-ish diff, no other changes. Intended as a trivial diff to open a PR and exercise The Watcher v1 review workflow end-to-end (watcher.yml on pull_request → fetch diff → Groq review → PR comment + label).
+
+
