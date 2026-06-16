@@ -359,3 +359,16 @@ Result:
 Added `export function sanitizeText(text, maxLength)` to lib/utils.js → `return String(text).trim().slice(0, maxLength);`. Trims surrounding whitespace then truncates to maxLength chars. String() coercion keeps it safe on non-string input. Matches the existing ESM export style of envInt/clampPositive; no other changes.
 
 
+---
+## Phase 3 — Truncate Watcher diff to fix Groq 413
+Date: 2026-06-16
+Prompt:
+Read watcher/index.js fully before starting. The Watcher is failing with Groq error 413 — the diff sent to Groq exceeds the TPM limit of 6000 tokens. Fix: before sending the diff to Groq, truncate it to a maximum of 3000 characters. Add this truncation in the review step where the diff content is assembled into the prompt. Add a log line { level:"info", message:"Diff truncated to fit token limit", original_length:X, truncated_length:3000 } when truncation happens. Do not change anything else. Append to PROMPTS.md.
+
+Result:
+- watcher/index.js reviewWithGroq(): diffText is now `let`; if diffText.length > MAX_DIFF_CHARS it logs `logInfo("Diff truncated to fit token limit", { original_length: <len>, truncated_length: 3000 })` (logInfo prepends level:"info" + timestamp, so the emitted JSON matches the requested shape) then `diffText = diffText.slice(0, MAX_DIFF_CHARS)`. Log only fires when truncation actually happens.
+- Added `const MAX_DIFF_CHARS = 3000;` to the tunables block beside MAX_FILES.
+- Nothing else changed (test-gen pass, labels, exit codes untouched). Verified: node --check watcher/index.js → SYNTAX OK.
+
+NOTE: this caps only the review prompt's diff; the v2 test-generation pass uses its own snippet extraction (≤5 funcs × ±3 lines) and is unaffected. 3000 chars ≈ well under 6000 tokens, so it leaves headroom for the system+instruction text in the same request.
+

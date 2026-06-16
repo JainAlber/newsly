@@ -35,6 +35,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
 const GROQ_MODEL = "llama-3.1-8b-instant";
 const MAX_FILES = 10;
+const MAX_DIFF_CHARS = 3000;
 const GROQ_MAX_TOKENS = 1500;
 const GROQ_TIMEOUT_MS = 15000;
 const GITHUB_API = "https://api.github.com";
@@ -131,7 +132,15 @@ function buildDiffText(files) {
 
 async function reviewWithGroq(files) {
   const groq = new Groq({ apiKey: GROQ_API_KEY });
-  const diffText = buildDiffText(files);
+  let diffText = buildDiffText(files);
+  // Cap the diff so the prompt stays under Groq's 6000 TPM token limit (avoids 413).
+  if (diffText.length > MAX_DIFF_CHARS) {
+    logInfo("Diff truncated to fit token limit", {
+      original_length: diffText.length,
+      truncated_length: MAX_DIFF_CHARS,
+    });
+    diffText = diffText.slice(0, MAX_DIFF_CHARS);
+  }
   const userPrompt =
     "Review the following pull request diff. Return ONLY a JSON array of findings, " +
     "no prose, in this exact shape:\n" +
