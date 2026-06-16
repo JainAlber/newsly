@@ -349,3 +349,13 @@ Result:
 NOTE: test generation is best-effort and isolated — extraction is a heuristic line scan (may catch non-function `const x =` assignments or miss multi-line signatures), and generated Jest tests are suggestions posted as a comment, not run or committed. Reusing GROQ_MAX_TOKENS=1500 for the test pass means very large function sets could truncate.
 
 
+---
+## Phase 1 — Add sanitizeText helper to lib/utils.js
+Date: 2026-06-16
+Prompt:
+In lib/utils.js add a new exported function called sanitizeText(text, maxLength) that trims whitespace and truncates to maxLength characters. Simple, clean, one function.
+
+Result:
+Added `export function sanitizeText(text, maxLength)` to lib/utils.js → `return String(text).trim().slice(0, maxLength);`. Trims surrounding whitespace then truncates to maxLength chars. String() coercion keeps it safe on non-string input. Matches the existing ESM export style of envInt/clampPositive; no other changes.
+
+
