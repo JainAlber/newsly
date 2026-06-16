@@ -32,7 +32,7 @@ export default function Home() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Newsly</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            Your daily AI news briefing ✦
+            Your daily AI news briefing ✦ v2
           </p>
         </div>
         <button
