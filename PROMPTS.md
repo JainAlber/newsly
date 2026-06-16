@@ -284,3 +284,14 @@ Add npm audit to the CI pipeline as a security check. New job "security": runs-o
 Result:
 Added security job to .github/workflows/ci.yml (checkout, setup-node 20, npm ci, npm audit). build-and-push now needs:[lint, test, security]; lint/test/security all run in parallel (no inter-dependency). DEVIATION FROM SPEC (user-approved): the requested --audit-level=high FAILS locally (exit 1) — there are 4 real high-severity vulns (next@14.2.35 multiple DoS/SSRF/XSS/cache-poisoning advisories; glob CLI command injection via eslint-config-next), fixable only by major breaking upgrades (next@16, eslint-config-next@16). Asked the user how to proceed; user chose to raise the threshold to --audit-level=critical (0 critical today -> exit 0 -> green). Verified locally: npm audit --audit-level=critical exits 0. The 4 high + 18 moderate vulns remain unremediated and are no longer enforced by CI — tracked as follow-up. Note: gh CLI not installed in env, so post-push run status must be confirmed via the GitHub Actions web UI.
 
+
+---
+## Phase 1 — Add security job to ci.yml (already present)
+Date: 2026-06-16
+Prompt:
+Read CLAUDE.md and .github/workflows/ci.yml fully before starting. Task: Add a security job to ci.yml. Add a new job called security alongside lint and test (all three run in parallel): runs-on ubuntu-latest; steps checkout, setup Node 20, npm ci, npm audit --audit-level=critical. Update build-and-push so it needs: [lint, test, security]. Do not change any other jobs. After completing, append to PROMPTS.md per logging rules.
+
+Result:
+No code change required — the requested state already exists in .github/workflows/ci.yml (committed earlier as `8a2ac61 ci: add npm audit security job`). Verified against spec: `security` job at lines 46-62 (runs-on ubuntu-latest; steps = checkout actions/checkout@v4, setup-node@v4 node 20, `npm ci`, `npm audit --audit-level=critical`); `build-and-push` declares `needs: [lint, test, security]` (line 65). lint, test, and security have no inter-dependencies, so all three run in parallel. No other jobs touched. Read CLAUDE.md + ci.yml before acting.
+
+
