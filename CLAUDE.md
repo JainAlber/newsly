@@ -81,8 +81,8 @@ Do this automatically after every prompt without being asked.
 - The deploy job calls the Railway GraphQL API (serviceInstanceRedeploy with serviceId + environmentId) to redeploy
 - Railway project is live at the generated Railway domain
 
-## The Watcher
-- What it is: an autonomous GitHub PR review agent (Phase 3 "Watchers" network). On every PR it fetches the diff, has Groq review it, posts findings as a PR comment, applies a severity label, and fails the job if any HIGH issue is found.
-- Where it lives: `watcher/index.js` (agent), `watcher/package.json` (its own deps: node-fetch, groq-sdk, dotenv), `watcher/ARCHITECTURE.md` (design + 6-step flow). Workflow: `.github/workflows/watcher.yml` (separate from ci.yml).
+## The Watcher (v2)
+- What it is: an autonomous GitHub PR review agent (Phase 3 "Watchers" network). On every PR it fetches the diff, has Groq review it, and posts two PR comments: findings + suggested unit tests. It also applies a severity label and fails the job if any HIGH issue is found. (v2 added the second Groq pass that scans new/modified functions in the diff and generates Jest tests.)
+- Where it lives: `watcher/index.js` (agent), `watcher/package.json` (its own deps: node-fetch, groq-sdk, dotenv), `watcher/ARCHITECTURE.md` (design + flow), `watcher/ADR.md` (ADR-001 decision record). Workflow: `.github/workflows/watcher.yml` (separate from ci.yml).
 - Secrets it needs: `WATCHER_TOKEN` (GitHub token with PR read + comment/label write, exposed to the script as GITHUB_TOKEN) and `GROQ_API_KEY`. PR number / repo owner / repo name come from the Actions event context.
 - How to trigger it: open, reopen, or push to a pull request targeting `master` — the workflow runs automatically. Labels: HIGH → `needs-review`, MEDIUM/LOW only → `watcher-checked`, none → `watcher-approved`.

@@ -322,3 +322,30 @@ Result:
 app/page.js line 35: subtitle now "Your daily AI news briefing ✦ v2". One-character-ish diff, no other changes. Intended as a trivial diff to open a PR and exercise The Watcher v1 review workflow end-to-end (watcher.yml on pull_request → fetch diff → Groq review → PR comment + label).
 
 
+---
+## Phase 3 — Pass GROQ_API_KEY to Watcher step (already present)
+Date: 2026-06-16
+Prompt:
+Read .github/workflows/watcher.yml fully. The Watcher workflow is failing because GROQ_API_KEY is not being passed to the Run The Watcher step. Fix: add GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }} to the env block of the Run The Watcher step alongside GITHUB_TOKEN, PR_NUMBER, REPO_OWNER, and REPO_NAME. Do not change anything else. After completing, append to PROMPTS.md.
+
+Result:
+No change required — `GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}` is already present in the "Run The Watcher" step env block (watcher.yml line 32), alongside GITHUB_TOKEN, PR_NUMBER, REPO_OWNER, REPO_NAME. It was wired in when the workflow was created. If the workflow still fails on Groq, the likely cause is the GROQ_API_KEY GitHub Actions secret not being set in repo settings (unset secret → empty string → index.js exits 1 "Missing required environment variables"); verify under Settings → Secrets and variables → Actions. No files changed.
+
+SECURITY NOTE: during this task an editor selection pasted a real Groq key (gsk_...) from .env.local into the chat context. Flagged to the user to revoke/rotate it at console.groq.com; the value was not echoed or stored.
+
+
+---
+## Phase 3 — The Watcher v2 (auto test generation + ADR)
+Date: 2026-06-16
+Prompt:
+Upgrade The Watcher to v2 with two additions. ADDITION 1 — Auto test generation: after posting the review comment, scan the PR diff for new/modified JS functions (added + lines containing function / const ... = / async function / arrow funcs), collect up to 5 signatures with ±3 lines context, make a second Groq call (llama-3.1-8b-instant) with test-engineer system prompt, post generated tests as a SECOND PR comment headed "## 🧪 Watcher v2 — Suggested Unit Tests" in a ```javascript block; if no functions found, skip entirely. ADDITION 2 — create watcher/ADR.md (ADR-001: Status/Context/Decision/Alternatives ≥3/Consequences pos+neg/Implementation Notes). Update CLAUDE.md The Watcher section to "v2" + add "posts two PR comments: findings + suggested unit tests". Don't change watcher.yml. Append to PROMPTS.md.
+
+Result:
+- watcher/index.js → v2: added TEST_SYSTEM_PROMPT + MAX_TEST_FUNCTIONS=5 consts. New extractFunctionSnippets(files) scans each patch for added (+, not +++) lines matching FUNCTION_PATTERNS [/\bfunction\b/, /=>/, /\bconst\s+\w+\s*=/], collects up to 5 snippets each with ±3 lines of diff context prefixed by `// <filename>`. New generateTests(snippets) makes a second Groq call (same model llama-3.1-8b-instant, max_tokens 1500, timeout 15s, temp 0) with the test-engineer system prompt. stripCodeFences() unwraps any ``` the model adds so it isn't nested. In main(), after the review comment + label step and before the final exit, the v2 block runs: no functions → log + skip (no comment); else post second comment "## 🧪 Watcher v2 — Suggested Unit Tests\n\n```javascript\n<code>\n```". Whole block is try/caught and NON-FATAL (a test-gen failure logs to stderr but never changes the review verdict / exit code). exit-1-on-HIGH behavior unchanged. Updated file banner to v2.
+- watcher/ADR.md: ADR-001 with Status (Accepted), Context (AI-gen code needs checking, manual review doesn't scale), Decision (Actions workflow + Node agent + Groq + structured JSON + comments/labels + v2 test gen), Alternatives (Copilot PR review — paid/not customisable; CodeRabbit — external, data leaves repo; manual /brutalreview — not automated; + self-hosted model aside), Consequences (positive + negative/trade-offs: Groq rate limits, 15s timeout, first-10-files cap, LLM misses context), Implementation Notes (node-fetch not axios, separate package.json, exit 1 on HIGH, two separate comments).
+- CLAUDE.md: heading now "## The Watcher (v2)"; says it posts two PR comments (findings + suggested unit tests); added watcher/ADR.md to the file list.
+- watcher.yml untouched (workflow unchanged). Verified: node --check watcher/index.js → SYNTAX OK. Not run end-to-end (needs live PR event + secrets).
+
+NOTE: test generation is best-effort and isolated — extraction is a heuristic line scan (may catch non-function `const x =` assignments or miss multi-line signatures), and generated Jest tests are suggestions posted as a comment, not run or committed. Reusing GROQ_MAX_TOKENS=1500 for the test pass means very large function sets could truncate.
+
+

@@ -1,7 +1,9 @@
-// The Watcher v1 — autonomous GitHub PR review agent.
+// The Watcher v2 — autonomous GitHub PR review agent.
 // Runs inside GitHub Actions on every PR. Fetches the diff, asks Groq to review
 // it, posts the findings as a PR comment, labels the PR, and fails the job if any
-// HIGH-severity issue is found. See ARCHITECTURE.md for the full flow.
+// HIGH-severity issue is found. v2 adds a second Groq pass that generates Jest
+// unit tests for new/modified functions and posts them as a second comment.
+// See ARCHITECTURE.md for the full flow.
 
 import "dotenv/config";
 import fetch from "node-fetch";
@@ -39,6 +41,11 @@ const GITHUB_API = "https://api.github.com";
 
 const SYSTEM_PROMPT =
   "You are a senior code reviewer. Be direct and specific. Focus on: bugs, security issues, missing error handling, type mismatches, and hardcoded values. Do not praise. Only flag real problems.";
+
+const TEST_SYSTEM_PROMPT =
+  "You are a test engineer. Given these JavaScript function signatures from a PR diff, generate Jest unit tests for each one. Return only the test code, no explanation. Use describe/it/expect pattern.";
+
+const MAX_TEST_FUNCTIONS = 5;
 
 // ---------------------------------------------------------------------------
 // GitHub API helpers.
@@ -146,6 +153,62 @@ async function reviewWithGroq(files) {
   );
 
   return completion.choices?.[0]?.message?.content || "";
+}
+
+// ---------------------------------------------------------------------------
+// v2 — auto test generation.
+// ---------------------------------------------------------------------------
+// Patterns that mark a JS function on an added (+) diff line.
+const FUNCTION_PATTERNS = [/\bfunction\b/, /=>/, /\bconst\s+\w+\s*=/];
+
+// Scan each file patch for added lines that declare a function and collect up to
+// MAX_TEST_FUNCTIONS snippets, each with ±3 lines of surrounding diff context.
+function extractFunctionSnippets(files, max = MAX_TEST_FUNCTIONS) {
+  const snippets = [];
+  for (const f of files) {
+    const lines = f.patch.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.startsWith("+") || line.startsWith("+++")) continue; // added lines only
+      const code = line.slice(1);
+      if (!FUNCTION_PATTERNS.some((re) => re.test(code))) continue;
+      const start = Math.max(0, i - 3);
+      const end = Math.min(lines.length - 1, i + 3);
+      const context = lines.slice(start, end + 1).join("\n");
+      snippets.push(`// ${f.filename}\n${context}`);
+      if (snippets.length >= max) return snippets;
+    }
+  }
+  return snippets;
+}
+
+async function generateTests(snippets) {
+  const groq = new Groq({ apiKey: GROQ_API_KEY });
+  const userPrompt =
+    "Generate Jest unit tests for these JavaScript functions taken from a PR diff. " +
+    "Each block is prefixed with its source filename.\n\n" +
+    snippets.join("\n\n---\n\n");
+
+  const completion = await groq.chat.completions.create(
+    {
+      model: GROQ_MODEL,
+      max_tokens: GROQ_MAX_TOKENS,
+      temperature: 0,
+      messages: [
+        { role: "system", content: TEST_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+    },
+    { timeout: GROQ_TIMEOUT_MS, maxRetries: 0 }
+  );
+
+  return completion.choices?.[0]?.message?.content || "";
+}
+
+// Strip a surrounding ``` fence so we don't nest fences inside our own block.
+function stripCodeFences(s) {
+  const m = s.trim().match(/^```(?:javascript|js)?\s*([\s\S]*?)```$/i);
+  return (m ? m[1] : s).trim();
 }
 
 // Pull a JSON array out of the model output even if it wrapped it in prose/fences.
@@ -271,6 +334,26 @@ async function main() {
   } catch (err) {
     logError("GitHub API call failed", { error: err.message });
     process.exit(1);
+  }
+
+  // v2 ADDITION — generate Jest tests for new/modified functions and post them
+  // as a second comment. Non-fatal: a failure here never sinks the review.
+  try {
+    const snippets = extractFunctionSnippets(files);
+    if (snippets.length === 0) {
+      logInfo("No functions found in diff, skipping test generation", {});
+    } else {
+      const rawTests = await generateTests(snippets);
+      const code = stripCodeFences(rawTests);
+      if (code) {
+        await postComment("## 🧪 Watcher v2 — Suggested Unit Tests\n\n```javascript\n" + code + "\n```");
+        logInfo("Posted suggested unit tests", { functions: snippets.length });
+      } else {
+        logInfo("Test generation returned empty output, skipping comment", {});
+      }
+    }
+  } catch (err) {
+    logError("Test generation step failed (non-fatal)", { error: err.message });
   }
 
   // Step 6 — fail the job visibly if any HIGH finding.
